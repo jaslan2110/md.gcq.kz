@@ -1,58 +1,87 @@
-"use client"; // Обязательно для использования хуков
+import { login } from '@/app/actions/auth';
+import { redirect } from 'next/navigation';
+import { getUser } from '@/app/actions/auth';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { account } from '@/lib/appwrite'; // Импортируем наш клиент
-import { AppwriteException } from 'appwrite';
+export default async function LoginPage() {
+  // Проверяем, не залогинен ли пользователь
+  const user = await getUser();
+  if (user) {
+    redirect('/');
+  }
 
-export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const router = useRouter();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError(null);
-
-    try {
-      // Создаем сессию
-      await account.createEmailPasswordSession(email, password);
-      // Перенаправляем в админку
-      router.push('/');
-    } catch (e) {
-      if (e instanceof AppwriteException) {
-        setError(e.message);
-      } else {
-        setError("Произошла неизвестная ошибка");
-      }
+  async function handleLogin(formData) {
+    'use server';
+    const result = await login(formData);
+    if (result.success) {
+      redirect('/');
     }
-  };
+    return result;
+  }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '300px' }}>
-        <h2>Вход в панель</h2>
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      backgroundColor: '#f5f5f5'
+    }}>
+      <form 
+        action={handleLogin}
+        style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '15px', 
+          width: '350px',
+          padding: '30px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+        }}
+      >
+        <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>Вход в панель</h2>
+        
         <input
           type="email"
+          name="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           required
-          style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+          style={{ 
+            padding: '12px', 
+            border: '1px solid #ddd', 
+            borderRadius: '4px',
+            fontSize: '14px'
+          }}
         />
+        
         <input
           type="password"
+          name="password"
           placeholder="Пароль"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           required
-          style={{ padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+          style={{ 
+            padding: '12px', 
+            border: '1px solid #ddd', 
+            borderRadius: '4px',
+            fontSize: '14px'
+          }}
         />
-        <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        
+        <button 
+          type="submit"
+          style={{ 
+            padding: '12px', 
+            background: '#0070f3', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: '500'
+          }}
+        >
           Войти
         </button>
-        {error && <p style={{ color: 'red' }}>{error}</p>}
       </form>
     </div>
   );
