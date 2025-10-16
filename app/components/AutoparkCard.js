@@ -44,35 +44,62 @@ function ChangeHistory({ logs }) {
     );
   }
 
+  // Иконки для разных полей
+  const FIELD_ICONS = {
+    name: '📝',
+    zkkid: '🔢',
+    position: '📍',
+    owner: '👤',
+    brand: '🚗',
+    model: '🚘',
+    gosnumber: '🔤',
+    serial: 'SN',
+    hoznumber: 'HN',
+    year: '📅',
+    narabotka: '⏱️',
+    condition: '🛠️',
+    note: '🗒️',
+    default: '🔄'
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {logs.map((log) => (
-        <div key={log.$id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-bold text-gray-800">
-              {FIELD_LABELS[log.fieldName] || log.fieldName}
-            </span>
-            <span className="text-xs text-gray-500">
-              {new Date(log.changedAt).toLocaleString('ru-RU')}
-            </span>
-          </div>
-          <div className="text-sm">
-            <p>
-              <span className="font-semibold text-gray-600">Пользователь:</span> {log.changedByName}
-            </p>
-            <p className="line-through text-red-600">
-              <span className="font-semibold text-gray-600">Было:</span> {log.oldValue || 'пусто'}
-            </p>
-            <p className="text-green-600">
-              <span className="font-semibold text-gray-600">Стало:</span> {log.newValue || 'пусто'}
-            </p>
+        <div key={log.$id} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md hover:border-blue-200 transition-all duration-200">
+          <div className="flex items-start">
+            <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-xl mr-4">
+              {FIELD_ICONS[log.fieldName] || FIELD_ICONS.default}
+            </div>
+            <div className="flex-grow">
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-gray-800">
+                  {FIELD_LABELS[log.fieldName] || log.fieldName}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {new Date(log.changedAt).toLocaleString('ru-RU')}
+                </span>
+              </div>
+              <div className="text-sm space-y-1">
+                <div className="flex items-center">
+                  <span className="font-semibold text-gray-600 w-24">Пользователь:</span>
+                  <span>{log.changedByName}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-semibold text-gray-600 w-24">Было:</span>
+                  <span className="line-through text-red-600 flex-1">{log.oldValue || 'пусто'}</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="font-semibold text-gray-600 w-24">Стало:</span>
+                  <span className="text-green-600 font-medium flex-1">{log.newValue || 'пусто'}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ))}
     </div>
   );
 }
-
 
 
 export default function AutoparkCard({ document }) {
@@ -99,7 +126,7 @@ export default function AutoparkCard({ document }) {
   }
 
   async function loadLogs() {
-    setloadingLogs(true);
+    setLoadingLogs(true);
     const result = await getLogsForDocument(document.$id);
     if (result.success) {
         setLogs(result.logs);
@@ -307,8 +334,8 @@ export default function AutoparkCard({ document }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6">
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden mt-6">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6">
                 <h2 className="text-2xl font-bold text-white">
                 История изменений
                 </h2>
