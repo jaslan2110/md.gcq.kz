@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getDocumentFiles, deleteFile } from '@/app/actions/storage';
 import FileUploader from './FileUploader';
 import FileViewer from './FileViewer';
+import { getLogsForDocument } from '@/app/actions/logs';
 
 const FIELD_LABELS = {
   name: 'Название',
@@ -33,14 +34,59 @@ const FILE_CATEGORIES = {
   other: 'Прочее'
 };
 
+
+function ChangeHistory({ logs }) {
+  if (!logs || logs.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">История изменений пуста.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {logs.map((log) => (
+        <div key={log.$id} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold text-gray-800">
+              {FIELD_LABELS[log.fieldName] || log.fieldName}
+            </span>
+            <span className="text-xs text-gray-500">
+              {new Date(log.changedAt).toLocaleString('ru-RU')}
+            </span>
+          </div>
+          <div className="text-sm">
+            <p>
+              <span className="font-semibold text-gray-600">Пользователь:</span> {log.changedByName}
+            </p>
+            <p className="line-through text-red-600">
+              <span className="font-semibold text-gray-600">Было:</span> {log.oldValue || 'пусто'}
+            </p>
+            <p className="text-green-600">
+              <span className="font-semibold text-gray-600">Стало:</span> {log.newValue || 'пусто'}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+
 export default function AutoparkCard({ document }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [viewingFile, setViewingFile] = useState(null);
+  
+  const [logs, setLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
 
   useEffect(() => {
     loadFiles();
+    loadLogs();
   }, []);
 
   async function loadFiles() {
@@ -50,6 +96,15 @@ export default function AutoparkCard({ document }) {
       setFiles(result.files);
     }
     setLoading(false);
+  }
+
+  async function loadLogs() {
+    setloadingLogs(true);
+    const result = await getLogsForDocument(document.$id);
+    if (result.success) {
+        setLogs(result.logs);
+    }
+    setLoadingLogs(false);
   }
 
   async function handleDeleteFile(fileId) {
@@ -251,6 +306,24 @@ export default function AutoparkCard({ document }) {
             )}
           </div>
         </div>
+
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-6">
+                <h2 className="text-2xl font-bold text-white">
+                История изменений
+                </h2>
+            </div>
+            <div className="p-6">
+                {loadingLogs ? (
+                    <div className="text-center py-8">
+                        <p>Загрузка истории...</p>
+                    </div>
+                ) : (
+                    <ChangeHistory logs={logs} />
+                )}
+            </div>
+        </div>
+
       </div>
 
       {/* Модальное окно просмотра файла */}
