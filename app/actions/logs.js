@@ -49,7 +49,7 @@ export async function createLogEntry(autoparkId, fieldName, oldValue, newValue) 
 }
 
 /**
- * Получает логи для конкретного документа
+ * Получает логи для конкретного документа (без пагинации, для обратной совместимости)
  * @param {string} autoparkId - ID документа автопарка
  */
 export async function getLogsForDocument(autoparkId) {
@@ -71,6 +71,76 @@ export async function getLogsForDocument(autoparkId) {
         console.error('Get logs for document error:', error);
         return { success: false, error: error.message, logs: [] };
     }
+}
+
+/**
+ * Получает логи для конкретного документа с фильтрацией и пагинацией
+ * @param {string} autoparkId - ID документа автопарка
+ * @param {Object} filters - Фильтры
+ * @param {string} filters.startDate - Дата начала (ISO format)
+ * @param {string} filters.endDate - Дата окончания (ISO format)
+ * @param {string} filters.fieldName - Название поля для фильтрации
+ * @param {number} page - Номер страницы
+ * @param {number} limit - Количество записей на странице
+ */
+export async function getLogsForDocumentPaginated(autoparkId, filters = {}, page = 1, limit = 10) {
+  try {
+    const { databases } = await createSessionClient();
+    
+    const offset = (page - 1) * limit;
+    
+    // Базовые запросы
+    const queries = [
+      Query.equal('autoparkId', autoparkId),
+      Query.orderDesc('changedAt'),
+      Query.limit(limit),
+      Query.offset(offset)
+    ];
+
+    // Добавляем фильтр по дате начала
+    if (filters.startDate) {
+      queries.push(Query.greaterThanEqual('changedAt', filters.startDate));
+    }
+
+    // Добавляем фильтр по дате окончания
+    if (filters.endDate) {
+      // Добавляем один день к конечной дате чтобы включить весь день
+      const endDate = new Date(filters.endDate);
+      endDate.setDate(endDate.getDate() + 1);
+      queries.push(Query.lessThan('changedAt', endDate.toISOString()));
+    }
+
+    // Добавляем фильтр по типу поля
+    if (filters.fieldName) {
+      queries.push(Query.equal('fieldName', filters.fieldName));
+    }
+
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      LOGS_COLLECTION_ID,
+      queries
+    );
+
+    return {
+      success: true,
+      logs: response.documents,
+      total: response.total,
+      page,
+      limit,
+      totalPages: Math.ceil(response.total / limit)
+    };
+  } catch (error) {
+    console.error('Get logs for document paginated error:', error);
+    return {
+      success: false,
+      error: error.message,
+      logs: [],
+      total: 0,
+      page: 1,
+      limit,
+      totalPages: 0
+    };
+  }
 }
 
 /**

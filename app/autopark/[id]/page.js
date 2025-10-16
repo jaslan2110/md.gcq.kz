@@ -53,7 +53,7 @@ export default async function AutoparkDetailPage({ params }) {
               </Link>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Карточка автомобиля
+                  Карточка техники
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">
                   {result.document.name || 'Без названия'} - {result.document.gosnumber || 'Без номера'}
