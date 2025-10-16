@@ -16,8 +16,12 @@ export async function getDocumentFiles(documentId) {
     const allFiles = await storage.listFiles(BUCKET_ID);
     
     // Фильтруем файлы по documentId в имени файла
+    // И исключаем удалённые файлы (с префиксом DELETED__)
     const documentFiles = allFiles.files.filter(file => {
-      return file.name.startsWith(`${documentId}__`);
+      const isDeleted = file.name.startsWith('DELETED__');
+      const belongsToDocument = file.name.startsWith(`${documentId}__`) || 
+                               file.name.startsWith(`DELETED__${documentId}__`);
+      return belongsToDocument && !isDeleted;
     });
     
     // Добавляем к каждому файлу извлеченные теги из имени
@@ -96,7 +100,7 @@ export async function deleteFile(fileId) {
     const client = databases.client;
     const storage = new Storage(client);
     
-    // Сначала получаем информацию о файле перед удалением
+    // Получаем информацию о файле
     const fileInfo = await storage.getFile(BUCKET_ID, fileId);
     
     // Извлекаем информацию из имени файла
@@ -105,12 +109,44 @@ export async function deleteFile(fileId) {
     const category = nameParts.length >= 2 ? nameParts[1] : 'other';
     const originalName = nameParts.length >= 3 ? nameParts.slice(2).join('__') : fileInfo.name;
     
-    // Удаляем файл
-    await storage.deleteFile(BUCKET_ID, fileId);
+    // Создаём ссылки на файл для сохранения в логах
+    const viewUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${fileId}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+    const downloadUrl = `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${fileId}/download?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
     
-    // Создаем лог об удалении файла
+    // Переименовываем файл с префиксом DELETED__
+    const newFileName = `DELETED__${fileInfo.name}`;
+    
+    // К сожалению, Appwrite API не поддерживает переименование файлов напрямую
+    // Поэтому мы просто создаём лог с пометкой "удалён" и сохраняем ссылки
+    // Файл остаётся в хранилище, но мы его фильтруем при получении списка файлов
+    
+    // Создаем временную метку удаления в самом Appwrite через обновление файла
+    // (используем API для обновления, если доступно)
+    try {
+      // Пытаемся обновить файл, добавив префикс в название
+      // Это работает только если у вас есть права на обновление
+      await fetch(
+        `${process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT}/storage/buckets/${BUCKET_ID}/files/${fileId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Appwrite-Project': process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
+            'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+          },
+          body: JSON.stringify({
+            name: newFileName
+          })
+        }
+      );
+    } catch (renameError) {
+      console.log('Could not rename file, marking as deleted in logs only:', renameError.message);
+      // Если не удалось переименовать, всё равно продолжаем с логом
+    }
+    
+    // Создаем лог об "удалении" файла с сохранением ссылок
     if (documentId) {
-      await createFileDeleteLog(documentId, originalName, category, fileId);
+      await createFileDeleteLog(documentId, originalName, category, fileId, viewUrl, downloadUrl);
     }
     
     return {

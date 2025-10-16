@@ -114,13 +114,15 @@ export async function createFileUploadLog(autoparkId, fileName, category, fileId
 }
 
 /**
- * Создает запись в логе об удалении файла
+ * Создает запись в логе об удалении файла с сохранением ссылок
  * @param {string} autoparkId - ID документа автопарка
  * @param {string} fileName - Имя удаленного файла
  * @param {string} category - Категория файла
  * @param {string} fileId - ID файла в хранилище
+ * @param {string} viewUrl - Ссылка для просмотра файла
+ * @param {string} downloadUrl - Ссылка для скачивания файла
  */
-export async function createFileDeleteLog(autoparkId, fileName, category, fileId) {
+export async function createFileDeleteLog(autoparkId, fileName, category, fileId, viewUrl, downloadUrl) {
   try {
     const { databases } = await createSessionClient();
     const user = await getUser();
@@ -129,10 +131,19 @@ export async function createFileDeleteLog(autoparkId, fileName, category, fileId
       throw new Error('Пользователь не авторизован для создания лога.');
     }
 
+    // Создаём строку с информацией о файле и ссылками
+    const fileInfo = {
+      fileName,
+      category,
+      fileId,
+      viewUrl,
+      downloadUrl
+    };
+
     const logData = {
       autoparkId,
       fieldName: 'file_delete',
-      oldValue: `Файл: ${fileName} (категория: ${category}, ID: ${fileId})`,
+      oldValue: JSON.stringify(fileInfo), // Сохраняем всю информацию как JSON
       newValue: 'Удален',
       changedBy: user.$id,
       changedByName: user.name,
