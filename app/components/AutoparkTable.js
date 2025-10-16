@@ -142,7 +142,7 @@ export default function AutoparkTable() {
   return (
     <div className="bg-white rounded-xl shadow-xl overflow-hidden">
       {/* Панель инструментов */}
-      <div className="bg-gradient-to-r from-green-400 to-green-400 p-4">
+      <div className="bg-gradient-to-r from-blue-500 to-blue-500 p-4">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <button

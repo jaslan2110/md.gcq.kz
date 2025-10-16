@@ -25,6 +25,8 @@ const FIELD_LABELS = {
   Encumbrance: 'Обременение',
   inventory_number: 'Инвентарный номер',
   width: 'Ширина',
+  file_upload: 'Загрузка файла',
+  file_delete: 'Удаление файла',
 };
 
 const FILE_CATEGORIES = {
@@ -59,44 +61,84 @@ function ChangeHistory({ logs }) {
     narabotka: '⏱️',
     condition: '🛠️',
     note: '🗒️',
+    file_upload: '📤',
+    file_delete: '🗑️',
     default: '🔄'
   };
 
   return (
     <div className="space-y-3">
-      {logs.map((log) => (
-        <div key={log.$id} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md hover:border-blue-200 transition-all duration-200">
-          <div className="flex items-start">
-            <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-xl mr-4">
-              {FIELD_ICONS[log.fieldName] || FIELD_ICONS.default}
-            </div>
-            <div className="flex-grow">
-              <div className="flex justify-between items-center mb-1">
-                <span className="font-bold text-gray-800">
-                  {FIELD_LABELS[log.fieldName] || log.fieldName}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {new Date(log.changedAt).toLocaleString('ru-RU')}
-                </span>
+      {logs.map((log) => {
+        const isFileOperation = log.fieldName === 'file_upload' || log.fieldName === 'file_delete';
+        
+        return (
+          <div key={log.$id} className={`p-4 rounded-lg border transition-all duration-200 ${
+            log.fieldName === 'file_upload' 
+              ? 'bg-green-50 border-green-200 hover:shadow-md hover:border-green-300' 
+              : log.fieldName === 'file_delete'
+              ? 'bg-red-50 border-red-200 hover:shadow-md hover:border-red-300'
+              : 'bg-gray-50 border-gray-200 hover:shadow-md hover:border-blue-200'
+          }`}>
+            <div className="flex items-start">
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xl mr-4 ${
+                log.fieldName === 'file_upload' 
+                  ? 'bg-green-200' 
+                  : log.fieldName === 'file_delete'
+                  ? 'bg-red-200'
+                  : 'bg-gray-200'
+              }`}>
+                {FIELD_ICONS[log.fieldName] || FIELD_ICONS.default}
               </div>
-              <div className="text-sm space-y-1">
-                <div className="flex items-center">
-                  <span className="font-semibold text-gray-600 w-24">Пользователь:</span>
-                  <span>{log.changedByName}</span>
+              <div className="flex-grow">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-gray-800">
+                    {FIELD_LABELS[log.fieldName] || log.fieldName}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {new Date(log.changedAt).toLocaleString('ru-RU')}
+                  </span>
                 </div>
-                <div className="flex items-start">
-                  <span className="font-semibold text-gray-600 w-24">Было:</span>
-                  <span className="line-through text-red-600 flex-1">{log.oldValue || 'пусто'}</span>
-                </div>
-                <div className="flex items-start">
-                  <span className="font-semibold text-gray-600 w-24">Стало:</span>
-                  <span className="text-green-600 font-medium flex-1">{log.newValue || 'пусто'}</span>
+                <div className="text-sm space-y-1">
+                  <div className="flex items-center">
+                    <span className="font-semibold text-gray-600 w-24">Пользователь:</span>
+                    <span>{log.changedByName}</span>
+                  </div>
+                  
+                  {isFileOperation ? (
+                    // Для файловых операций показываем специальный формат
+                    <div className="mt-2">
+                      {log.fieldName === 'file_upload' ? (
+                        <div className="bg-white p-2 rounded border border-green-300">
+                          <span className="text-green-700 font-medium">{log.newValue}</span>
+                        </div>
+                      ) : (
+                        <div className="bg-white p-2 rounded border border-red-300">
+                          <div className="text-red-700">
+                            <span className="font-semibold">Удален: </span>
+                            <span className="line-through">{log.oldValue}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Для обычных полей показываем старое и новое значение
+                    <>
+                      <div className="flex items-start">
+                        <span className="font-semibold text-gray-600 w-24">Было:</span>
+                        <span className="line-through text-red-600 flex-1">{log.oldValue || 'пусто'}</span>
+                      </div>
+                      <div className="flex items-start">
+                        <span className="font-semibold text-gray-600 w-24">Стало:</span>
+                        <span className="text-green-600 font-medium flex-1">{log.newValue || 'пусто'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -140,6 +182,7 @@ export default function AutoparkCard({ document }) {
     const result = await deleteFile(fileId);
     if (result.success) {
       await loadFiles();
+      await loadLogs(); // Обновляем логи после удаления
     }
   }
 
@@ -174,7 +217,7 @@ export default function AutoparkCard({ document }) {
           <div className="p-6 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
             {Object.entries(FIELD_LABELS).map(([key, label]) => {
               const value = document[key];
-              if (!value) return null;
+              if (!value || key === 'file_upload' || key === 'file_delete') return null;
               
               return (
                 <div key={key} className="border-b border-gray-200 pb-3">
@@ -213,7 +256,10 @@ export default function AutoparkCard({ document }) {
           <div className="p-6 border-b border-gray-200">
             <FileUploader 
               documentId={document.$id} 
-              onUploadComplete={loadFiles}
+              onUploadComplete={() => {
+                loadFiles();
+                loadLogs(); // Обновляем логи после загрузки
+              }}
             />
           </div>
 
@@ -343,7 +389,8 @@ export default function AutoparkCard({ document }) {
             <div className="p-6">
                 {loadingLogs ? (
                     <div className="text-center py-8">
-                        <p>Загрузка истории...</p>
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+                        <p className="mt-2 text-gray-600">Загрузка истории...</p>
                     </div>
                 ) : (
                     <ChangeHistory logs={logs} />

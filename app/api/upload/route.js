@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createFileUploadLog } from '@/app/actions/logs';
 
 const BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
 const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
@@ -77,6 +78,9 @@ export async function POST(request) {
 
         const result = await response.json();
         uploadedFiles.push(result);
+        
+        // Создаем лог о загрузке файла
+        await createFileUploadLog(documentId, file.name, category, result.$id);
         
         console.log(`Successfully uploaded: ${file.name} as ${result.$id}`);
       } catch (fileError) {

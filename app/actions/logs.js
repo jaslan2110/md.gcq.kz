@@ -72,3 +72,83 @@ export async function getLogsForDocument(autoparkId) {
         return { success: false, error: error.message, logs: [] };
     }
 }
+
+/**
+ * Создает запись в логе о загрузке файла
+ * @param {string} autoparkId - ID документа автопарка
+ * @param {string} fileName - Имя загруженного файла
+ * @param {string} category - Категория файла
+ * @param {string} fileId - ID файла в хранилище
+ */
+export async function createFileUploadLog(autoparkId, fileName, category, fileId) {
+  try {
+    const { databases } = await createSessionClient();
+    const user = await getUser();
+
+    if (!user) {
+      throw new Error('Пользователь не авторизован для создания лога.');
+    }
+
+    const logData = {
+      autoparkId,
+      fieldName: 'file_upload',
+      oldValue: '',
+      newValue: `Загружен файл: ${fileName} (категория: ${category}, ID: ${fileId})`,
+      changedBy: user.$id,
+      changedByName: user.name,
+      changedAt: new Date().toISOString(),
+    };
+
+    await databases.createDocument(
+      DATABASE_ID,
+      LOGS_COLLECTION_ID,
+      'unique()',
+      logData
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error('Create file upload log error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Создает запись в логе об удалении файла
+ * @param {string} autoparkId - ID документа автопарка
+ * @param {string} fileName - Имя удаленного файла
+ * @param {string} category - Категория файла
+ * @param {string} fileId - ID файла в хранилище
+ */
+export async function createFileDeleteLog(autoparkId, fileName, category, fileId) {
+  try {
+    const { databases } = await createSessionClient();
+    const user = await getUser();
+
+    if (!user) {
+      throw new Error('Пользователь не авторизован для создания лога.');
+    }
+
+    const logData = {
+      autoparkId,
+      fieldName: 'file_delete',
+      oldValue: `Файл: ${fileName} (категория: ${category}, ID: ${fileId})`,
+      newValue: 'Удален',
+      changedBy: user.$id,
+      changedByName: user.name,
+      changedAt: new Date().toISOString(),
+    };
+
+    await databases.createDocument(
+      DATABASE_ID,
+      LOGS_COLLECTION_ID,
+      'unique()',
+      logData
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error('Create file delete log error:', error);
+    return { success: false, error: error.message };
+  }
+}

@@ -2,6 +2,7 @@
 
 import { createSessionClient } from '@/lib/appwrite-server';
 import { Storage, Query } from 'node-appwrite';
+import { createFileDeleteLog } from './logs';
 
 const BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID;
 
@@ -28,7 +29,8 @@ export async function getDocumentFiles(documentId) {
       return {
         ...file,
         $tags: [documentId, category],
-        displayName: originalName
+        displayName: originalName,
+        category: category
       };
     });
     
@@ -94,7 +96,22 @@ export async function deleteFile(fileId) {
     const client = databases.client;
     const storage = new Storage(client);
     
+    // Сначала получаем информацию о файле перед удалением
+    const fileInfo = await storage.getFile(BUCKET_ID, fileId);
+    
+    // Извлекаем информацию из имени файла
+    const nameParts = fileInfo.name.split('__');
+    const documentId = nameParts[0] || '';
+    const category = nameParts.length >= 2 ? nameParts[1] : 'other';
+    const originalName = nameParts.length >= 3 ? nameParts.slice(2).join('__') : fileInfo.name;
+    
+    // Удаляем файл
     await storage.deleteFile(BUCKET_ID, fileId);
+    
+    // Создаем лог об удалении файла
+    if (documentId) {
+      await createFileDeleteLog(documentId, originalName, category, fileId);
+    }
     
     return {
       success: true
