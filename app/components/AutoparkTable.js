@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getAutoparkList, updateAutoparkDocument, createAutoparkDocument, deleteAutoparkDocument } from '@/app/actions/autopark';
+import Link from 'next/link';
 
 // Все колонки из схемы
 const DEFAULT_COLUMNS = [
@@ -281,7 +282,7 @@ export default function AutoparkTable() {
                     </div>
                   </th>
                 ))}
-                <th className="bg-gradient-to-b from-gray-100 to-gray-200 border border-gray-300 px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider shadow-sm" style={{ width: '100px' }}>
+                <th className="bg-gradient-to-b from-gray-100 to-gray-200 border border-gray-300 px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider shadow-sm" style={{ width: '150px' }}>
                   Действия
                 </th>
               </tr>
@@ -329,12 +330,20 @@ export default function AutoparkTable() {
                     );
                   })}
                   <td className="border border-gray-300 px-3 py-2.5 text-sm text-center">
-                    <button
-                      onClick={() => deleteRow(doc.$id)}
-                      className="text-red-600 hover:text-red-800 font-semibold hover:underline transition-colors duration-150 px-2 py-1 rounded hover:bg-red-50"
-                    >
-                      Удалить
-                    </button>
+                    <div className="flex items-center justify-center space-x-2">
+                      <Link
+                        href={`/autopark/${doc.$id}`}
+                        className="text-blue-600 hover:text-blue-800 font-semibold hover:underline transition-colors duration-150 px-2 py-1 rounded hover:bg-blue-50"
+                      >
+                        Просмотр
+                      </Link>
+                      <button
+                        onClick={() => deleteRow(doc.$id)}
+                        className="text-red-600 hover:text-red-800 font-semibold hover:underline transition-colors duration-150 px-2 py-1 rounded hover:bg-red-50"
+                      >
+                        Удалить
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -415,8 +424,6 @@ export default function AutoparkTable() {
           </div>
         </div>
       )}
-
-    
     </div>
   );
 }

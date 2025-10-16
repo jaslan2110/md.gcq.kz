@@ -10,7 +10,7 @@
   "dependencies": {
     "appwrite": "^21.2.1",
     "next": "15.5.5",
-    "node-appwrite": "^20.2.1",
+    "node-appwrite": "^16.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
