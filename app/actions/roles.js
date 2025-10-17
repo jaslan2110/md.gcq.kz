@@ -5,8 +5,8 @@ import { Query } from 'node-appwrite';
 import { getUser } from './auth';
 
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
-const ROLES_COLLECTION_ID = '68f0c865003364e63789'; // ЗАМЕНИТЕ на ID вашей коллекции roles
-const USERS_EXTENDED_COLLECTION_ID = '68f0c90100342a08a355'; // ЗАМЕНИТЕ на ID вашей коллекции users_extended
+const ROLES_COLLECTION_ID = '68f0c865003364e63789'; // ID коллекции roles
+const USERS_EXTENDED_COLLECTION_ID = '68f0c90100342a08a355'; // ID коллекции users_extended
 
 /**
  * Получить все роли
@@ -257,24 +257,36 @@ export async function getUserRole(userId) {
  */
 export async function getAllUsersWithRoles() {
   try {
-    const { account } = await createAdminClient();
-    const { databases } = await createSessionClient();
-
-    // Получаем всех пользователей из Auth
-    const allUsers = [];
-    let lastUserId = null;
+    // Используем Admin Client для доступа к Users API
+    const adminClient = await createAdminClient();
+    const { databases } = adminClient;
     
-    // Appwrite возвращает максимум 100 пользователей за раз
+    // Импортируем Users из node-appwrite
+    const { Users } = await import('node-appwrite');
+    const usersService = new Users(databases.client);
+
+    // Получаем всех пользователей из Auth используя Users API
+    const allUsers = [];
+    let offset = 0;
+    const limit = 100;
+    
     while (true) {
-      const queries = lastUserId 
-        ? [Query.limit(100), Query.cursorAfter(lastUserId)]
-        : [Query.limit(100)];
-      
-      const usersList = await account.list(queries);
-      allUsers.push(...usersList.users);
-      
-      if (usersList.users.length < 100) break;
-      lastUserId = usersList.users[usersList.users.length - 1].$id;
+      try {
+        const usersList = await usersService.list([
+          Query.limit(limit),
+          Query.offset(offset)
+        ]);
+        
+        if (!usersList.users || usersList.users.length === 0) break;
+        
+        allUsers.push(...usersList.users);
+        
+        if (usersList.users.length < limit) break;
+        offset += limit;
+      } catch (err) {
+        console.error('Error fetching users batch:', err);
+        break;
+      }
     }
 
     // Получаем расширенные данные всех пользователей
@@ -470,8 +482,6 @@ export async function toggleUserBlock(userId, isBlocked, blockedUntil = null) {
  */
 export async function createUserWithRole(email, password, name, roleId) {
   try {
-    const { account } = await createAdminClient();
-    const { databases } = await createSessionClient();
     const currentUser = await getUser();
 
     if (!currentUser) {
@@ -484,10 +494,19 @@ export async function createUserWithRole(email, password, name, roleId) {
       throw new Error('Недостаточно прав для создания пользователей');
     }
 
-    // Создаем пользователя в Auth
-    const newUser = await account.create(
+    // Используем Admin Client
+    const adminClient = await createAdminClient();
+    const { databases } = adminClient;
+    
+    // Импортируем Users из node-appwrite
+    const { Users } = await import('node-appwrite');
+    const usersService = new Users(databases.client);
+
+    // Создаем пользователя в Auth используя Users API
+    const newUser = await usersService.create(
       'unique()',
       email,
+      undefined, // phone (optional)
       password,
       name
     );
