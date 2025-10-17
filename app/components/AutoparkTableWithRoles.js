@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getAutoparkList, updateAutoparkDocument, createAutoparkDocument, deleteAutoparkDocument } from '@/app/actions/autopark';
 import { getUserRole } from '@/app/actions/roles';
 import Link from 'next/link';
@@ -47,6 +47,10 @@ export default function AutoparkTable({ userId }) {
   // Колонки на основе прав доступа
   const [columns, setColumns] = useState([]);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  
+  // Поиск
+  const [searchFilters, setSearchFilters] = useState({});
+  const [showSearchRow, setShowSearchRow] = useState(false);
 
   // Загрузка прав пользователя
   useEffect(() => {
@@ -122,6 +126,49 @@ export default function AutoparkTable({ userId }) {
       setTotal(result.total);
     }
     setLoading(false);
+  }
+
+  // Фильтрация документов на основе поиска
+  const filteredDocuments = useMemo(() => {
+    if (Object.keys(searchFilters).length === 0) {
+      return documents;
+    }
+
+    return documents.filter(doc => {
+      return Object.entries(searchFilters).every(([key, value]) => {
+        if (!value || value.trim() === '') return true;
+        
+        const docValue = (doc[key] || '').toString().toLowerCase();
+        const searchValue = value.toLowerCase();
+        
+        return docValue.includes(searchValue);
+      });
+    });
+  }, [documents, searchFilters]);
+
+  // Обновляем total с учетом фильтрации
+  const filteredTotal = filteredDocuments.length;
+
+  function handleSearchChange(columnKey, value) {
+    setSearchFilters(prev => {
+      const newFilters = { ...prev };
+      
+      if (value.trim() === '') {
+        delete newFilters[columnKey];
+      } else {
+        newFilters[columnKey] = value;
+      }
+      
+      return newFilters;
+    });
+    
+    // Сбрасываем на первую страницу при поиске
+    setPage(1);
+  }
+
+  function clearAllSearches() {
+    setSearchFilters({});
+    setPage(1);
   }
 
   function startEdit(rowId, columnKey, currentValue) {
@@ -247,6 +294,8 @@ export default function AutoparkTable({ userId }) {
     );
   }
 
+  const activeSearchCount = Object.keys(searchFilters).length;
+
   return (
     <div className="bg-white rounded-xl shadow-xl overflow-hidden">
       {/* Панель инструментов */}
@@ -276,6 +325,32 @@ export default function AutoparkTable({ userId }) {
               Обновить
             </button>
 
+            <button
+              onClick={() => setShowSearchRow(!showSearchRow)}
+              className={`px-5 py-2.5 rounded-lg transition-all duration-200 font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 ${
+                showSearchRow 
+                  ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
+                  : 'bg-white text-blue-600 hover:bg-blue-50'
+              }`}
+            >
+              <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Поиск {activeSearchCount > 0 && `(${activeSearchCount})`}
+            </button>
+
+            {activeSearchCount > 0 && (
+              <button
+                onClick={clearAllSearches}
+                className="bg-red-500 text-white px-5 py-2.5 rounded-lg hover:bg-red-600 transition-all duration-200 font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Очистить поиск
+              </button>
+            )}
+
             {/* Администратор может настраивать видимость колонок */}
             {permissions?.canManageRoles && (
               <button
@@ -292,7 +367,15 @@ export default function AutoparkTable({ userId }) {
 
             <div className="border-l border-blue-400 pl-4 ml-2">
               <span className="text-white font-medium">
-                Всего записей: <span className="font-bold text-lg">{total}</span>
+                {activeSearchCount > 0 ? (
+                  <>
+                    Найдено: <span className="font-bold text-lg">{filteredTotal}</span> из {total}
+                  </>
+                ) : (
+                  <>
+                    Всего записей: <span className="font-bold text-lg">{total}</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -376,19 +459,33 @@ export default function AutoparkTable({ userId }) {
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
             <p className="mt-4 text-gray-600 font-medium text-lg">Загрузка данных...</p>
           </div>
-        ) : documents.length === 0 ? (
+        ) : filteredDocuments.length === 0 ? (
           <div className="p-16 text-center">
             <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="text-lg text-gray-500 mb-4">Нет данных для отображения</p>
-            {permissions?.canCreateAutopark && (
-              <button
-                onClick={addNewRow}
-                className="text-blue-600 hover:text-blue-800 font-semibold text-lg hover:underline"
-              >
-                Добавить первую запись
-              </button>
+            {activeSearchCount > 0 ? (
+              <>
+                <p className="text-lg text-gray-500 mb-4">Нет результатов по заданным критериям поиска</p>
+                <button
+                  onClick={clearAllSearches}
+                  className="text-blue-600 hover:text-blue-800 font-semibold text-lg hover:underline"
+                >
+                  Очистить поиск
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-lg text-gray-500 mb-4">Нет данных для отображения</p>
+                {permissions?.canCreateAutopark && (
+                  <button
+                    onClick={addNewRow}
+                    className="text-blue-600 hover:text-blue-800 font-semibold text-lg hover:underline"
+                  >
+                    Добавить первую запись
+                  </button>
+                )}
+              </>
             )}
           </div>
         ) : (
@@ -419,9 +516,44 @@ export default function AutoparkTable({ userId }) {
                   Действия
                 </th>
               </tr>
+              
+              {/* Строка поиска */}
+              {showSearchRow && (
+                <tr className="bg-yellow-50">
+                  <th className="border border-gray-300 px-2 py-2">
+                    <div className="flex items-center justify-center">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </th>
+                  {visibleColumns.map(col => (
+                    <th key={col.key} className="border border-gray-300 px-2 py-2">
+                      <input
+                        type="text"
+                        placeholder={`Поиск...`}
+                        value={searchFilters[col.key] || ''}
+                        onChange={(e) => handleSearchChange(col.key, e.target.value)}
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </th>
+                  ))}
+                  <th className="border border-gray-300 px-2 py-2">
+                    {activeSearchCount > 0 && (
+                      <button
+                        onClick={clearAllSearches}
+                        className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors font-semibold"
+                        title="Очистить все фильтры"
+                      >
+                        Очистить
+                      </button>
+                    )}
+                  </th>
+                </tr>
+              )}
             </thead>
             <tbody>
-              {documents.map((doc, index) => (
+              {filteredDocuments.map((doc, index) => (
                 <tr key={doc.$id} className="hover:bg-blue-50 transition-colors duration-150 group">
                   <td className="border border-gray-300 px-4 py-2.5 text-sm text-gray-600 bg-gray-50 font-semibold text-center">
                     {(page - 1) * limit + index + 1}
@@ -497,6 +629,11 @@ export default function AutoparkTable({ userId }) {
               Показано <span className="font-bold text-blue-600">{(page - 1) * limit + 1}</span> - 
               <span className="font-bold text-blue-600"> {Math.min(page * limit, total)}</span> из 
               <span className="font-bold text-blue-600"> {total}</span> записей
+              {activeSearchCount > 0 && (
+                <span className="ml-2 text-yellow-600">
+                  (отфильтровано: {filteredTotal})
+                </span>
+              )}
             </span>
 
             <div className="flex items-center space-x-2">
